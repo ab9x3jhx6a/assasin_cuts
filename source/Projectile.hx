@@ -7,6 +7,7 @@ class Projectile extends FlxSprite
 {
 	
 	static var projectileSpeed:Int = 500;
+	public var startpoint_x:Float;
 	var pos_x:Float;
 	var pos_y:Float;
 	var aim_x:Float;
@@ -19,10 +20,10 @@ class Projectile extends FlxSprite
 		
 		this.loadGraphic("assets/images/Characters/Main/magic_effect.png", true, 96, 96);
 		animation.add("move", [0, 2, 4, 1, 3, 5], 8, false);
-		//this.makeGraphic(64,64, FlxColor.GRAY);
 		
 		// set init position
 		this.setPosition(pos_x, pos_y);
+		startpoint_x = pos_x;
 		
 		// set velocity
 		var dX:Float = aim_x - pos_x;
@@ -40,8 +41,6 @@ class Projectile extends FlxSprite
 	override public function update():Void
 	{
 		super.update();
-		
-		
 	}
 	
 }

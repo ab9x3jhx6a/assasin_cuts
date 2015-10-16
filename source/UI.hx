@@ -24,6 +24,9 @@ class UI extends FlxTypedGroup<FlxSprite>
 	var textTextBox:FlxText;
 	
 	var sprHair:FlxSprite;
+	var healthicon:FlxSprite;
+	var healthicon_half:FlxSprite;
+	var healthicon_low:FlxSprite;
 	var textHair:FlxText;
 	var textTime:FlxText;
 	var timerClock:FlxTimer;
@@ -31,19 +34,13 @@ class UI extends FlxTypedGroup<FlxSprite>
 	
 	var goalString:String = "";
 	var goalStringIndex:Int = 0;
-	var hairCount = 0;
+	public var hairCount = 0;
 	
 	var sprFullScreen:FlxSprite;
 	
 	var MAX_LENGTH_OF_TEXT:Int = 240;
-	var TIMER_LENGTH:Int = 0 * 60 + 30 * 1;
+	public var TIMER_LENGTH:Int = 0 * 60 + 30 * 1;
 	
-	private function myCallback(Timer:FlxTimer):Void
-	{
-		trace("Yeehaw");
-	}
-
-
 	public function new() 
 	{
 		super();
@@ -57,29 +54,41 @@ class UI extends FlxTypedGroup<FlxSprite>
 		sprTextBox.y = (4 / 5) * FlxG.height;
 		sprTextBox.alpha = 0;
 		textTextBox = new FlxText(0, (2 / 3) * FlxG.height, (4 / 5) * FlxG.width, "", 20/*, BOOL use imbedded fonts)*/); 
+		textTextBox.systemFont = "Courier New";
+		textTextBox.bold = true;
 		textTextBox.color = 0xFF000000;
 		textTextBox.fieldWidth = sprTextBox.width - 40;
 		textTextBox.x = sprTextBox.x + 20;
 		textTextBox.y = sprTextBox.y + 20;
 		textTextBox.alignment = "left";
 		if (textTextBox.text.length > MAX_LENGTH_OF_TEXT) FlxG.cameras.bgColor = 0xFF000000;
-		sprHair = new FlxSprite(FlxG.width*(1/10)+10, 5, "assets/images/winkydog.png"); 
+		sprHair = new FlxSprite(FlxG.width * (1 / 10) + 10, 5, "assets/images/items/score.png"); 
+		healthicon = new FlxSprite(FlxG.width * (7 / 10) - 10, 5, "assets/images/items/health.png");
+		healthicon_half = new FlxSprite(FlxG.width * (7 / 10) - 10, 5, "assets/images/items/health_half.png");
+		healthicon_low = new FlxSprite(FlxG.width * (7 / 10) - 10, 5, "assets/images/items/health_low.png");
 		textHair = new FlxText(sprHair.x + sprHair.width + 15, sprHair.y + sprHair.width / 2 - 12, 85, "x00", 20);
 		textHair.color = 0xFF000000;
 		textTime = new FlxText(5, 5, 85, "5:00", 20);
 		textTime.color = 0xFF000000;
-		timerClock = new FlxTimer(TIMER_LENGTH, myCallback, 1);
+		timerClock = new FlxTimer(TIMER_LENGTH, null, 1);
 		sprFullScreen = new FlxSprite(0, 0, "assets/images/racoon.jpg");
 		sprFullScreen.alpha = 0;
 		
 		//add(sprHealth);
 		add(barHealth);
 		add(sprHair);
+		add(healthicon);
+		add(healthicon_half);
+		add(healthicon_low);
 		add(textTime);
 		add(textHair);
 		add(sprFullScreen);
 		add(sprTextBox);
 		add(textTextBox);
+		
+		healthicon.alpha = 1;
+		healthicon_half.alpha = 0;
+		healthicon_low.alpha = 0;
 		
 		//prevent any scrolling onscreen
 		forEach(function(spr:FlxSprite) {
@@ -117,6 +126,21 @@ class UI extends FlxTypedGroup<FlxSprite>
 	public function updateHealthBar(healthe:Float) : Void{
 		//barHealth.health = _player.HP;
 		barHealth.percent = healthe;
+		if (barHealth.percent > 50 && barHealth.percent < 100) {
+			healthicon.alpha = 1;
+			healthicon_half.alpha = 0;
+			healthicon_low.alpha = 0;
+		}
+		else if (barHealth.percent > 25 && barHealth.percent <= 50) {
+			healthicon.alpha = 0;
+			healthicon_half.alpha = 1;
+			healthicon_low.alpha = 0;	
+		}
+		else if (barHealth.percent <= 25) {
+			healthicon.alpha = 0;
+			healthicon_half.alpha = 0;
+			healthicon_low.alpha = 1;	
+		}
 	}
 	
 	public function updateText(texte:String) : Void {
@@ -126,6 +150,16 @@ class UI extends FlxTypedGroup<FlxSprite>
 		textTextBox.text = "";
 		goalStringIndex = 0;
 		waitframe = frame + texte.length + 900; //This relies upon the fact that we draw one letter per frame
+	}
+	
+	public function setTimer(duration:Int) {
+		TIMER_LENGTH = duration;
+		timerClock = new FlxTimer(duration, null, 1);
+	}
+	
+	public function destroyTimer() {
+			timerClock.destroy();
+			this.remove(textTime);
 	}
 	
 	private function updateClockDisplay() {
@@ -145,6 +179,10 @@ class UI extends FlxTypedGroup<FlxSprite>
 		/*var x:Int = 20; //<-- 10 means ten percent of time left
 		if (timerClock.progress >= (1 - .01 * x) )
 			textTime.color = 0xFFFF0000;*/
+	}
+	
+	public function getRemainingTime():Int {
+		return Std.int(TIMER_LENGTH - timerClock.progress);
 	}
 	
 	public function updateHairCount(haire:Int) : Void {

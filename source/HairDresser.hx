@@ -6,6 +6,7 @@ import flash.events.Event;
 import flash.Lib;
 import flixel.FlxGame;
 import flixel.FlxState;
+import flixel.tweens.FlxTween;
 import flixel.FlxSprite;
 import flixel.group.FlxGroup;
 import flixel.util.FlxColor;
@@ -13,6 +14,8 @@ import flixel.FlxG;
 import flixel.FlxCamera;
 import flixel.util.FlxPoint;
 import flixel.FlxObject;
+import flixel.tweens.FlxEase;
+import flixel.util.FlxVelocity;
 
 using flixel.util.FlxSpriteUtil;
 
@@ -22,8 +25,8 @@ using flixel.util.FlxSpriteUtil;
 class HairDresser extends FlxSprite
 {
 	//movement and position
-	public static var MAX_SPEED:Int = 1000;
-	public static var SPEED:Int = 850;
+	public static var MAX_SPEED:Int = 750;
+	public static var SPEED:Int = 600;
 	public var centerX:Float;
 	public var centerY:Float;
 	public var isOnGround:Bool;
@@ -36,6 +39,8 @@ class HairDresser extends FlxSprite
 	private var attackLimit:Float; //length of attack sprite-state
 	public var isMove:Bool; //checks if in move state
 	public var charged:Bool = false; //whether the player charged up the attack
+	public var damage:Float; //damage dealt by melee attack
+	public var isAttack:Bool; //is true when basic_attack animation is running
 	
 	//timer for charge attack
 	private var chargetimer:Float = 0;
@@ -46,10 +51,17 @@ class HairDresser extends FlxSprite
 	public var spriteGroup:FlxGroup;
 	var attack_animation:FlxSprite;
 	
+	//charged effect sprite
+	var charged_effect:FlxSprite;
+	
+	//sound
+	private var sound = SoundFactory.getInstance();
+	
 	
 	//health
 	public var startHP:Float;
 	public var HP:Float;
+	public var godMode:Bool=false;
 	
 	public function new() 
 	{
@@ -59,7 +71,7 @@ class HairDresser extends FlxSprite
 		isOnGround = false;
 		
 		//camera follows this object
-		FlxG.camera.follow(this, FlxCamera.STYLE_PLATFORMER,null,0);
+		FlxG.camera.follow(this, FlxCamera.STYLE_PLATFORMER,null,2);
 		FlxG.camera.zoom = 1;
 		
 		//load hairdresser graphic
@@ -86,6 +98,12 @@ class HairDresser extends FlxSprite
 		spriteGroup.add(this);
 		spriteGroup.add(attack_animation);
 		
+		//adding charged_effect sprite
+		charged_effect = new FlxSprite();
+		charged_effect.loadGraphic("assets/images/Characters/Main/charged.png", true, 64, 64);
+		charged_effect.animation.add("shine", [0, 1, 2], 8, false);
+		spriteGroup.add(charged_effect);
+		
 		this.maxVelocity.set(MAX_SPEED);
 		
 		//set the center x and y coordinates of hairDresser
@@ -93,19 +111,22 @@ class HairDresser extends FlxSprite
 		centerY = this.height / 2;
 		
 		// set gravity
-		this.acceleration.y = 1500;
+		this.acceleration.y = 2000;
 		this.acceleration.x = 0;
 		
 		//_brain starts in move
 		_brain = new FSM(move);
 		//set stun, attack times
-		stunLimit = 35;
+		stunLimit = 20;
 		attackLimit = 15;
 		isMove = true;
 		
 		//set HP
 		startHP = 100;
 		HP = startHP;
+		
+		damage = 10;
+		isAttack = false;
 	}
 	
 	override public function update():Void
@@ -120,11 +141,30 @@ class HairDresser extends FlxSprite
 		if (attack_animation.animation.finished) {
 			this.alpha = 1;
 			attack_animation.alpha = 0;
+			isAttack = false; 
 		}
 		else {
 			this.alpha = 0;
 			attack_animation.alpha = 1;
 		}
+		
+		//charged_effect
+		if (charged) {
+			
+		}
+		
+		if (charged_effect.animation.finished) {
+			charged_effect.alpha = 0;
+		}
+		
+		if (godMode) {
+			HP = 100;
+		}
+		
+		if (FlxG.keys.justReleased.P) {
+			HP = 100;
+		}
+		
 		
 	}
 	
@@ -144,16 +184,22 @@ class HairDresser extends FlxSprite
 	public function move():Void {
 		//setting child position to parent
 		attack_animation.setPosition(this.x, this.y);
+		if (face_left) {
+			charged_effect.setPosition(this.x + 25, this.y);
+		}
+		else{
+			charged_effect.setPosition(this.x, this.y);
+		}
 		
 		// movement
-		//if (isOnGround && this.isTouching(FlxObject.FLOOR) && (FlxG.keys.pressed.W || FlxG.keys.pressed.UP)) this.velocity.y    = -SPEED;
-		if (FlxG.keys.pressed.W || FlxG.keys.pressed.UP)  this.velocity.y = -SPEED;
+		if (isOnGround && this.isTouching(FlxObject.FLOOR) && (FlxG.keys.pressed.W || FlxG.keys.pressed.UP)) this.velocity.y    = -SPEED - 300;
+		//if (FlxG.keys.pressed.W || FlxG.keys.pressed.UP) {  this.velocity.y = -SPEED;}
 		if (FlxG.keys.pressed.S || FlxG.keys.pressed.DOWN)  this.velocity.y = SPEED;
 		if (FlxG.keys.pressed.A || FlxG.keys.pressed.LEFT) this.velocity.x  = -SPEED;
 		if (FlxG.keys.pressed.D || FlxG.keys.pressed.RIGHT) this.velocity.x = SPEED;
 		
 		
-		if (FlxG.keys.pressed.E) {
+		if (FlxG.keys.pressed.SPACE) {
 			chargetimer += FlxG.elapsed;
 			if (face_left) {
 				attack_animation.flipX = true;
@@ -161,12 +207,24 @@ class HairDresser extends FlxSprite
 			else {
 				attack_animation.flipX = false;
 			}
+			
+			this.velocity.x /= 2;
+			this.velocity.y /= 2;
+			
+			if (chargetimer >= chargetime) {
+				//play the charged effect
+				charged_effect.animation.play("shine");
+				charged_effect.alpha = 1;
+			}
+			
 			attack_animation.animation.play("charge");
 			
 		}
-		else if (FlxG.keys.justReleased.E) {
+		else if (FlxG.keys.justReleased.SPACE) {
 			if (chargetimer >= chargetime) {
+				
 				charged = true;
+				
 				if (face_left) {
 					attack_animation.flipX = true;
 				}
@@ -174,6 +232,7 @@ class HairDresser extends FlxSprite
 					attack_animation.flipX = false;
 				}
 				attack_animation.animation.play("release");
+				sound.swoosh();
 			}
 			else {
 				charged = false;
@@ -184,6 +243,10 @@ class HairDresser extends FlxSprite
 					attack_animation.flipX = false;
 				}
 				attack_animation.animation.play("basic_attack");
+				isAttack = true;
+				
+				sound.scissors();
+				
 			}
 			chargetimer = 0;
 		}
@@ -211,35 +274,25 @@ class HairDresser extends FlxSprite
 				else animation.play("jump_right");
 			}
 		}
+		//if basic_attack or any non-looping animation is finished,
+		//set isAttack equal to false
+		if (animation.finished) { isAttack = false; trace("isAttack=false");}
 		
 	}
 	
-	public function attack():Void {
-		//when timer runs out, switch to move state
-		if (Timer <= 0) {
-			_brain.activeState = move;
-			isMove = true;
-		}
-		else
-			Timer -= 1;
-	}
-	
-	//triggers transition to attack sprite-state
-	public function startAttack():Void {
-			Timer = attackLimit;
-			_brain.activeState = attack;
-			isMove = false;
-	}
-	
 	//takes damage; switches to stun
-	public function takeDamage(damage:Float) {
+	public function takeDamage(damage:Float):Float {
 		HP -= damage;
 		trace(HP);
 		//if not already stunned, set timer and switch to stun
 		if (_brain.activeState != stun) {
+			//animation.pause;
 			Timer = stunLimit;
 			_brain.activeState = stun;
 			isMove = false;
+			sound.elliehurt();
 		}
+		return HP;
 	}
+	
 }

@@ -9,10 +9,11 @@ import flixel.util.FlxSave;
  */
 class Reg
 {
-	public static var score:Int;
+	public static var score:Int = 0;
+	public static var prevScore:Int = 0;
 	public static var time:Int;
 	public static var currentState:Int;
 	
-	public static var ref_x:Float = 0;
-	public static var ref_y:Float = 0;
+	public static var hair_x:Float = 0;
+	public static var hair_y:Float = 0;
 }
